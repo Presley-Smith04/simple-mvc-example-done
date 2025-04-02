@@ -1,5 +1,10 @@
 // pull in our models. This will automatically load the index.js from that folder
 const models = require('../models');
+const Dog = require('../models/Dog');
+const express = require('express');
+const router = express.Router();
+const Dog = require('../models/Dog');
+
 
 // get the Cat model
 const { Cat } = models;
@@ -9,7 +14,7 @@ const hostIndex = async (req, res) => {
   //Start with the name as unknown
   let name = 'unknown';
 
-  try{
+  try {
     /* Cat.findOne() will find a cat that matches the query given to it as the first parameter.
        In this case, we give it an empty object so it will match against any object it finds.
        The second parameter is essentially a filter for the values we want. This works similarly
@@ -19,12 +24,12 @@ const hostIndex = async (req, res) => {
        in descending order (so that more recent things are "on the top"). Since we are only
        finding one, this query will either find the most recent cat if it exists, or nothing.
     */
-    const doc = await Cat.findOne({}, {}, { 
-      sort: {'createdDate': 'descending'}
+    const doc = await Cat.findOne({}, {}, {
+      sort: { 'createdDate': 'descending' }
     }).lean().exec();
 
     //If we did get a cat back, store it's name in the name variable.
-    if(doc) {
+    if (doc) {
       name = doc.name;
     }
   } catch (err) {
@@ -102,7 +107,7 @@ const hostPage3 = (req, res) => {
 
 // Get name will return the name of the last added cat.
 const getName = async (req, res) => {
-  try{
+  try {
     /* Here we are trying to do the exact same thing we did in host index up
        above. We want to find the most recently added cat. The only difference
        here is that we are using the query .sort() function rather than passing
@@ -110,19 +115,19 @@ const getName = async (req, res) => {
        functionally the same. We are just seeing that it can be written in
        more than one way.
     */
-    const doc = await Cat.findOne({}).sort({'createdDate': 'descending'}).lean().exec();
+    const doc = await Cat.findOne({}).sort({ 'createdDate': 'descending' }).lean().exec();
 
     //If we did get a cat back, store it's name in the name variable.
-    if(doc) {
-      return res.json({name: doc.name});
+    if (doc) {
+      return res.json({ name: doc.name });
     }
-    return res.status(404).json({error: 'No cat found'});
+    return res.status(404).json({ error: 'No cat found' });
   } catch (err) {
     /* If an error occurs, it means something went wrong with the database. We will
        give the user a 500 internal server error status code and an error message.
     */
     console.log(err);
-    return res.status(500).json({error: 'Something went wrong contacting the database'});
+    return res.status(500).json({ error: 'Something went wrong contacting the database' });
   }
 }
 
@@ -258,9 +263,9 @@ const updateLast = (req, res) => {
 
      We can use async/await for this, or just use standard promise .then().catch() syntax.
   */
-  const updatePromise = Cat.findOneAndUpdate({}, {$inc: {'bedsOwned': 1}}, {
+  const updatePromise = Cat.findOneAndUpdate({}, { $inc: { 'bedsOwned': 1 } }, {
     returnDocument: 'after', //Populates doc in the .then() with the version after update
-    sort: {'createdDate': 'descending'}
+    sort: { 'createdDate': 'descending' }
   }).lean().exec();
 
   // If we successfully save/update them in the database, send back the cat's info.
@@ -283,6 +288,123 @@ const notFound = (req, res) => {
   });
 };
 
+
+
+
+
+//new controller funcitons for dog
+exports.addDog = async (req, res) => {
+  const { name, breed, age } = req.body;
+
+  if (!name || !breed || !age) {
+    return res.status(400).send('All fields are required');
+  }
+
+  try {
+    const newDog = new Dog({ name, breed, age });
+    await newDog.save();
+    res.redirect('/page3');
+  } catch (err) {
+    res.status(500).send('Error saving');
+  }
+};
+
+
+exports.updateDog = async (req, res) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).send('Dog name required');
+  }
+
+
+  try {
+    const dog = await Dog.findOne({ name });
+
+    if (!dog) {
+      return res.status(404).send('Dog not found');
+    }
+
+    dog.age += 1;
+    await dog.save();
+    res.redirect('/page3');
+  } catch (err) {
+    res.status(500).send('Error updating');
+  }
+};
+
+
+exports.getDogs = async (req, res) => {
+  try {
+    const dogs = await Dog.find();
+    res.render('page4', { dogs });
+  } catch (err) {
+    res.status(500).send('Error retrieving');
+  }
+};
+
+
+
+
+
+
+// Route to add a new dog
+router.post('/add-dog', async (req, res) => {
+  const { name, breed, age } = req.body;
+
+  if (!name || !breed || !age) {
+    return res.status(400).send('All fields are required.');
+  }
+
+  try {
+    const newDog = new Dog({ name, breed, age });
+    await newDog.save();
+    res.redirect('/page3');
+  } catch (err) {
+    res.status(500).send('Error saving dog.');
+  }
+});
+
+// Route to update a dog's age by name
+router.post('/update-dog', async (req, res) => {
+  const { name } = req.body;
+
+  if (!name) {
+    return res.status(400).send('Dog name is required.');
+  }
+
+  try {
+    const dog = await Dog.findOne({ name });
+
+    if (!dog) {
+      return res.status(404).send('Dog not found.');
+    }
+
+    dog.age += 1;
+    await dog.save();
+    res.redirect('/page3');
+  } catch (err) {
+    res.status(500).send('Error updating dog.');
+  }
+});
+
+// Route to display all dogs on page4
+router.get('/page4', async (req, res) => {
+  try {
+    const dogs = await Dog.find();
+    res.render('page4', { dogs });
+  } catch (err) {
+    res.status(500).send('Error retrieving dogs.');
+  }
+});
+
+module.exports = router;
+
+
+
+
+
+
 // export the relevant public controller functions
 module.exports = {
   index: hostIndex,
@@ -294,4 +416,5 @@ module.exports = {
   updateLast,
   searchName,
   notFound,
+  router,
 };

@@ -14,6 +14,13 @@ const mongoose = require('mongoose');
 // express handlebars is an express plugin for handlebars templating
 const expressHandlebars = require('express-handlebars');
 
+
+
+const express = require('express');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+
+
 // import our router.js file to handle the MVC routes
 // In MVC, you have 'routes' that line up URLs to controller methods
 const router = require('./router.js');
@@ -42,6 +49,19 @@ const port = process.env.PORT || process.env.NODE_PORT || 3000;
 
 // call express to get an Express MVC server object
 const app = express();
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
+mongoose.connect('mongodb://localhost:27017/dogsDB', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+app.use('/', require('./controllers'));
+
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
 
 // app.use tells express to use different options
 // This option tells express to use /assets in a URL path as a static mirror to our client folder
